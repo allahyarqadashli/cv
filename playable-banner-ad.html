@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playable Banner Ad – 300×600</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111118;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: sans-serif;
+  }
+  #banner {
+    width: 300px;
+    height: 600px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.07), 0 30px 80px rgba(0,0,0,0.7);
+  }
+  #bgCanvas, #gameCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  #gameCanvas { cursor: none; }
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 68px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 30px;
+    padding: 5px 14px 6px;
+    min-width: 68px;
+  }
+  .hud-label {
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    font-family: 'Courier New', monospace;
+  }
+  .hud-value {
+    font-family: 'Courier New', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+    transition: color 0.3s;
+  }
+  .hud-value.warn { color: #ff5566; }
+  .hud-value.pop  { animation: hudpop 0.22s ease; }
+  @keyframes hudpop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.5); color: #ffe44d; }
+    100% { transform: scale(1); }
+  }
+  #progressWrap {
+    position: absolute;
+    top: 64px; left: 18px; right: 18px;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    z-index: 10;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  #progressFill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--c1), var(--c2));
+    box-shadow: 0 0 8px var(--c2);
+    transition: width 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    padding: 28px 24px;
+  }
+  #startScreen {
+    background: rgba(8,8,16,0.82);
+    backdrop-filter: blur(4px);
+    transition: opacity 0.4s;
+  }
+  #startScreen.hidden { opacity: 0; pointer-events: none; }
+  .s-eyebrow {
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--c2);
+    opacity: 0.8;
+    margin-bottom: 14px;
+  }
+  .s-icon {
+    font-size: 58px;
+    line-height: 1;
+    margin-bottom: 16px;
+    animation: sway 2.6s ease-in-out infinite;
+    filter: drop-shadow(0 0 18px var(--c1));
+  }
+  @keyframes sway {
+    0%,100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-12px) rotate(3deg); }
+  }
+  .s-title {
+    font-family: 'Georgia', serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    line-height: 1.15;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+  }
+  .s-sub {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: rgba(255,255,255,0.42);
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 0.06em;
+    line-height: 1.6;
+  }
+  .s-goal {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    color: var(--c2);
+    opacity: 0.7;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .btn-primary {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(135deg, var(--c1) 0%, var(--c2) 100%);
+    border: none;
+    padding: 13px 36px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 0 24px rgba(255,107,53,0.5), 0 4px 14px rgba(0,0,0,0.5);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .btn-primary::after {
+    content:'';
+    position:absolute;
+    inset:0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.22) 0%, transparent 55%);
+    pointer-events:none;
+    border-radius:inherit;
+  }
+  .btn-primary:hover  { transform: translateY(-2px) scale(1.03); }
+  .btn-primary:active { transform: scale(0.96); }
+  .btn-ghost {
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 22px;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 10px;
+  }
+  .btn-ghost:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+  #endScreen {
+    background: rgba(6,6,14,0.95);
+    display: none;
+  }
+  #endScreen.visible { display: flex; }
+  .e-badge { font-size: 52px; line-height: 1; margin-bottom: 10px; }
+  .e-badge.won  { animation: wiggle 0.7s ease infinite alternate; filter: drop-shadow(0 0 16px gold); }
+  .e-badge.lost { filter: drop-shadow(0 0 10px rgba(255,100,100,0.6)); }
+  @keyframes wiggle {
+    from { transform: rotate(-8deg) scale(1); }
+    to   { transform: rotate(8deg) scale(1.1); }
+  }
+  .e-tag {
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--c2);
+    opacity: 0.65;
+    margin-bottom: 10px;
+  }
+  .e-headline {
+    font-family: 'Georgia', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    line-height: 1.2;
+    margin-bottom: 20px;
+  }
+  .e-score-row { display: flex; align-items: baseline; gap: 4px; margin-bottom: 4px; }
+  .e-score-num {
+    font-family: 'Courier New', monospace;
+    font-size: 58px;
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 0 30px rgba(255,107,53,0.6);
+  }
+  .e-score-denom {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.08em;
+  }
+  .e-label {
+    font-family: 'Courier New', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+    margin-bottom: 24px;
+  }
+</style>
+</head>
+<body>
+<div id="banner">
+  <canvas id="bgCanvas"   width="300" height="600"></canvas>
+  <canvas id="gameCanvas" width="300" height="600"></canvas>
+
+  <div id="hud">
+    <div class="hud-pill">
+      <span class="hud-label">Time</span>
+      <span class="hud-value" id="timerDisplay">30</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">Caught</span>
+      <span class="hud-value" id="scoreDisplay">0</span>
+    </div>
+    <div class="hud-pill">
+      <span class="hud-label">Goal</span>
+      <span class="hud-value" id="goalDisplay">15</span>
+    </div>
+  </div>
+  <div id="progressWrap"><div id="progressFill"></div></div>
+
+  <div id="startScreen" class="overlay">
+    <span class="s-eyebrow">Playable Ad</span>
+    <div class="s-icon"  id="sIcon">🛍️</div>
+    <div class="s-title" id="sTitle">Catch &amp; Collect</div>
+    <div class="s-sub"   id="sSub">Move your bag to catch<br>every falling item!</div>
+    <div class="s-goal"  id="sGoal">Catch 15 items in 30 seconds</div>
+    <button class="btn-primary" id="btnPlay">&#9654;&nbsp; Play Now</button>
+  </div>
+
+  <div id="endScreen" class="overlay">
+    <div class="e-badge"    id="eBadge">🏆</div>
+    <div class="e-tag"      id="eTag">Time's Up</div>
+    <div class="e-headline" id="eHeadline">Nice Catch!</div>
+    <div class="e-score-row">
+      <span class="e-score-num"   id="eScore">0</span>
+      <span class="e-score-denom" id="eDenom">/ 15</span>
+    </div>
+    <div class="e-label">items caught</div>
+    <a  class="btn-primary" id="btnCta"    href="https://example.com" target="_blank">Shop Now</a>
+    <button class="btn-ghost"  id="btnReplay">&#8635; Play Again</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   ★  CONFIG  — Designers only need to edit this block  ★
+   ===================================================================== */
+const CONFIG = {
+
+  /* ── ASSETS ─────────────────────────────────────────────────────────
+     Set to URL string or null for built-in procedural fallbacks        */
+  backgroundImage: null,          // e.g. "assets/background.jpg"
+
+  fallingItems: [                 // Array of item image URLs (or null)
+    null,                         // e.g. "assets/item1.png"
+    null,                         // e.g. "assets/item2.png"
+    null,                         // e.g. "assets/item3.png"
+  ],
+
+  bagImage:   null,               // e.g. "assets/bag.png"
+  sparkImage: null,               // e.g. "assets/spark.png"
+
+  /* ── COPY ────────────────────────────────────────────────────────── */
+  startIcon:    '🛍️',
+  startTitle:   'Catch &\nCollect',
+  startSub:     'Move your bag to catch\nevery falling item!',
+  headlineText: 'Nice Catch!',
+  ctaText:      'Shop Now',
+  ctaLink:      'https://example.com',
+
+  /* ── GAME PARAMS ─────────────────────────────────────────────────── */
+  timerDuration:  30,     // seconds
+  targetScore:    15,     // items to win
+  fallSpeed:      3.2,    // initial drop speed px/frame
+  speedRampPer:   0.15,   // extra speed added per catch
+  speedMax:       8,      // speed cap
+  spawnInterval:  1100,   // ms between new items
+  itemSize:       48,     // px  — item bounding box (square)
+  bagWidth:       82,     // px  — bag hitbox width
+  bagHeight:      72,     // px  — bag render height
+
+  /* ── THEME ───────────────────────────────────────────────────────── */
+  accentColor1: '#ff6b35',
+  accentColor2: '#ffe44d',
+
+  /* ── PROCEDURAL FALLBACK COLOURS / ICONS (when no item images set) ─ */
+  itemColors: ['#ff6b35','#ffe44d','#ff4499','#44ddff','#88ff44','#bb88ff'],
+  itemIcons:  ['📦','⭐','💎','🎁','🔥','🍀'],
+};
+
+/* =====================================================================
+   ASSET LOADER
+   ===================================================================== */
+const ASSETS = {};
+function loadImg(key, src) {
+  return new Promise(res => {
+    if (!src) { ASSETS[key] = null; res(); return; }
+    const img = new Image();
+    img.onload  = () => { ASSETS[key] = img; res(); };
+    img.onerror = () => { ASSETS[key] = null; res(); };
+    img.src = src;
+  });
+}
+async function loadAllAssets() {
+  const jobs = [
+    loadImg('bg', CONFIG.backgroundImage),
+    loadImg('bag', CONFIG.bagImage),
+    loadImg('spark', CONFIG.sparkImage),
+  ];
+  CONFIG.fallingItems.forEach((src, i) => jobs.push(loadImg('item' + i, src)));
+  await Promise.all(jobs);
+}
+
+/* =====================================================================
+   CANVAS
+   ===================================================================== */
+const W = 300, H = 600;
+const bgCanvas  = document.getElementById('bgCanvas');
+const bgCtx     = bgCanvas.getContext('2d');
+const canvas    = document.getElementById('gameCanvas');
+const ctx       = canvas.getContext('2d');
+
+// Apply CSS vars for theme
+document.documentElement.style.setProperty('--c1', CONFIG.accentColor1);
+document.documentElement.style.setProperty('--c2', CONFIG.accentColor2);
+
+/* =====================================================================
+   BACKGROUND
+   ===================================================================== */
+const STARS = Array.from({ length: 60 }, () => ({
+  x: Math.random() * W, y: Math.random() * H,
+  r: Math.random() * 1.3 + 0.3,
+  phase: Math.random() * Math.PI * 2,
+  speed: 0.3 + Math.random() * 0.5,
+}));
+
+function drawBackground() {
+  if (ASSETS.bg) {
+    bgCtx.drawImage(ASSETS.bg, 0, 0, W, H);
+    bgCtx.fillStyle = 'rgba(0,0,0,0.35)';
+    bgCtx.fillRect(0, 0, W, H);
+    return;
+  }
+  const g = bgCtx.createLinearGradient(0, 0, W * 0.4, H);
+  g.addColorStop(0,   '#0c0612');
+  g.addColorStop(0.5, '#110820');
+  g.addColorStop(1,   '#080510');
+  bgCtx.fillStyle = g;
+  bgCtx.fillRect(0, 0, W, H);
+
+  const rg = bgCtx.createRadialGradient(W / 2, H * 0.6, 0, W / 2, H * 0.6, W * 0.8);
+  rg.addColorStop(0,   'rgba(255,107,53,0.07)');
+  rg.addColorStop(0.5, 'rgba(255,228,77,0.03)');
+  rg.addColorStop(1,   'transparent');
+  bgCtx.fillStyle = rg;
+  bgCtx.fillRect(0, 0, W, H);
+
+  STARS.forEach(s => {
+    s.phase += s.speed * 0.012;
+    const a = 0.12 + 0.18 * Math.sin(s.phase);
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = 'rgba(255,240,200,' + a + ')';
+    bgCtx.fill();
+  });
+}
+
+/* =====================================================================
+   GAME STATE
+   ===================================================================== */
+const HUD_H     = 74;
+const BAG_FLOOR = H - 28;
+const CATCH_Y   = BAG_FLOOR - CONFIG.bagHeight * 0.38;
+
+let state       = 'idle';
+let score       = 0;
+let timeLeft    = CONFIG.timerDuration;
+let timerHandle = null;
+let spawnHandle = null;
+let animId      = null;
+
+let bagX        = W / 2;
+let bagTargetX  = W / 2;
+
+let items       = [];
+let particles   = [];
+let floaters    = [];
+
+let flashAlpha  = 0;
+let flashColor  = '#ff6b35';
+let shakeMag    = 0;
+let shakeDir    = 1;
+let curSpeed    = CONFIG.fallSpeed;
+
+/* =====================================================================
+   GAME INITIALIZATION
+   ===================================================================== */
+function applyConfig() {
+  document.getElementById('sIcon').textContent         = CONFIG.startIcon;
+  document.getElementById('sTitle').innerHTML          = CONFIG.startTitle.replace(/\n/g, '<br>');
+  document.getElementById('sSub').innerHTML            = CONFIG.startSub.replace(/\n/g, '<br>');
+  document.getElementById('sGoal').textContent         = 'Catch ' + CONFIG.targetScore + ' items in ' + CONFIG.timerDuration + 's';
+  document.getElementById('goalDisplay').textContent   = CONFIG.targetScore;
+  document.getElementById('timerDisplay').textContent  = CONFIG.timerDuration;
+  document.getElementById('eHeadline').textContent     = CONFIG.headlineText;
+  document.getElementById('eDenom').textContent        = '/ ' + CONFIG.targetScore;
+  document.getElementById('btnCta').textContent        = CONFIG.ctaText;
+  document.getElementById('btnCta').href               = CONFIG.ctaLink;
+  document.getElementById('progressFill').style.width  = '0%';
+}
+
+function resetState() {
+  score = 0; timeLeft = CONFIG.timerDuration; curSpeed = CONFIG.fallSpeed;
+  items = []; particles = []; floaters = [];
+  flashAlpha = 0; shakeMag = 0;
+  bagX = bagTargetX = W / 2;
+}
+
+function init() {
+  applyConfig();
+  resetState();
+  state = 'idle';
+  updateHUD();
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(loop);
+}
+
+/* =====================================================================
+   START / END
+   ===================================================================== */
+function startGame() {
+  const ss = document.getElementById('startScreen');
+  ss.classList.add('hidden');
+  setTimeout(() => { ss.style.display = 'none'; }, 420);
+  resetState();
+  state = 'playing';
+  updateHUD();
+  startTimer();
+  scheduleSpawn();
+}
+
+function endGame() {
+  state = 'ended';
+  clearInterval(timerHandle);
+  clearTimeout(spawnHandle);
+  items = [];
+  const won = score >= CONFIG.targetScore;
+  document.getElementById('eBadge').textContent    = won ? '🏆' : '💫';
+  document.getElementById('eBadge').className      = 'e-badge ' + (won ? 'won' : 'lost');
+  document.getElementById('eTag').textContent      = won ? 'You Did It!' : "Time's Up";
+  document.getElementById('eHeadline').textContent = CONFIG.headlineText;
+  document.getElementById('eScore').textContent    = score;
+  document.getElementById('eScore').style.color    = won ? CONFIG.accentColor1 : '#ff6688';
+  document.getElementById('endScreen').classList.add('visible');
+  if (won) burstConfetti(40);
+}
+
+/* =====================================================================
+   TIMER
+   ===================================================================== */
+function startTimer() {
+  clearInterval(timerHandle);
+  timerHandle = setInterval(function() {
+    if (state !== 'playing') { clearInterval(timerHandle); return; }
+    timeLeft = Math.max(0, timeLeft - 1);
+    updateHUD();
+    if (timeLeft <= 0) { clearInterval(timerHandle); endGame(); }
+  }, 1000);
+}
+
+/* =====================================================================
+   SPAWN SYSTEM
+   ===================================================================== */
+function scheduleSpawn() {
+  clearTimeout(spawnHandle);
+  if (state !== 'playing') return;
+  spawnHandle = setTimeout(function() {
+    spawnItem();
+    scheduleSpawn();
+  }, CONFIG.spawnInterval);
+}
+
+function spawnItem() {
+  if (state !== 'playing') return;
+  const half = CONFIG.itemSize / 2 + 12;
+  const x    = half + Math.random() * (W - half * 2);
+  const idx  = Math.floor(Math.random() * CONFIG.fallingItems.length);
+  const ci   = Math.floor(Math.random() * CONFIG.itemColors.length);
+  items.push({
+    x: x, y: HUD_H - CONFIG.itemSize,
+    w: CONFIG.itemSize, h: CONFIG.itemSize,
+    velY: curSpeed + (Math.random() - 0.5) * 0.6,
+    assetIdx: idx, colorIdx: ci,
+    alive: true,
+    rot: (Math.random() - 0.5) * 0.3,
+    rotSpd: (Math.random() - 0.5) * 0.04,
+    swayPhase: Math.random() * Math.PI * 2,
+  });
+}
+
+/* =====================================================================
+   INPUT  — bag follows pointer (mouse or touch)
+   ===================================================================== */
+function getBX(e) {
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  if (e.touches) return (e.touches[0].clientX - rect.left) * scaleX;
+  return (e.clientX - rect.left) * scaleX;
+}
+function clampBag(x) {
+  return Math.max(CONFIG.bagWidth / 2, Math.min(W - CONFIG.bagWidth / 2, x));
+}
+function onMove(e) {
+  e.preventDefault();
+  if (state === 'idle')    { startGame(); return; }
+  if (state !== 'playing') return;
+  bagTargetX = clampBag(getBX(e));
+}
+function onDown(e) {
+  e.preventDefault();
+  if (state === 'idle') { startGame(); return; }
+  bagTargetX = clampBag(getBX(e));
+}
+
+canvas.addEventListener('mousemove',  onMove, { passive: false });
+canvas.addEventListener('touchmove',  onMove, { passive: false });
+canvas.addEventListener('mousedown',  onDown, { passive: false });
+canvas.addEventListener('touchstart', onDown, { passive: false });
+
+document.getElementById('btnPlay').addEventListener('click', function(e) { e.stopPropagation(); startGame(); });
+document.getElementById('btnReplay').addEventListener('click', function() {
+  document.getElementById('endScreen').classList.remove('visible');
+  var ss = document.getElementById('startScreen');
+  ss.style.display = 'flex'; ss.style.opacity = '1'; ss.classList.remove('hidden');
+  clearInterval(timerHandle); clearTimeout(spawnHandle);
+  init();
+});
+
+/* =====================================================================
+   CATCH COLLISION
+   ===================================================================== */
+function checkCatches() {
+  var bagL = bagX - CONFIG.bagWidth  * 0.46;
+  var bagR = bagX + CONFIG.bagWidth  * 0.46;
+
+  items.forEach(function(item) {
+    if (!item.alive) return;
+    if (item.y + item.h / 2 < CATCH_Y) return;        // not there yet
+
+    if (item.y - item.h / 2 > BAG_FLOOR + 12) {       // fell past bag
+      item.alive = false;
+      spawnParticles(item.x, BAG_FLOOR, false);
+      flashColor = '#ff4444'; flashAlpha = 0.18; shakeMag = 5;
+      return;
+    }
+    var iL = item.x - item.w * 0.4;
+    var iR = item.x + item.w * 0.4;
+    if (iR < bagL || iL > bagR) {                      // beside bag
+      if (item.y + item.h / 2 > BAG_FLOOR) {
+        item.alive = false;
+        spawnParticles(item.x, item.y, false);
+        flashColor = '#ff4444'; flashAlpha = 0.14; shakeMag = 4;
+      }
+      return;
+    }
+    // ✅ CAUGHT
+    item.alive = false;
+    score++;
+    curSpeed = Math.min(CONFIG.speedMax, CONFIG.fallSpeed + score * CONFIG.speedRampPer);
+    spawnParticles(bagX, BAG_FLOOR - CONFIG.bagHeight * 0.4, true);
+    flashColor = CONFIG.accentColor1; flashAlpha = 0.22;
+    floaters.push({ x: item.x, y: CATCH_Y, alpha: 1, vy: -1.5, text: '+1' });
+    updateHUD(true);
+    if (score >= CONFIG.targetScore) setTimeout(endGame, 400);
+  });
+
+  items = items.filter(function(it) { return it.alive; });
+}
+
+/* =====================================================================
+   PARTICLES
+   ===================================================================== */
+function spawnParticles(x, y, success) {
+  var n  = success ? 22 : 9;
+  var cs = success
+    ? [CONFIG.accentColor1, CONFIG.accentColor2, '#ffffff']
+    : ['#ff4444', '#ff8844'];
+  for (var i = 0; i < n; i++) {
+    var a   = Math.random() * Math.PI * 2;
+    var spd = success ? 1.5 + Math.random() * 4 : 1 + Math.random() * 2.5;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd - (success ? 2.5 : 0.5),
+      r:  success ? 2 + Math.random() * 4 : 1.5 + Math.random() * 2,
+      alpha: 1,
+      color: cs[i % cs.length],
+      decay: 0.025 + Math.random() * 0.03,
+      star: success && i % 3 === 0,
+    });
+  }
+}
+
+function burstConfetti(total) {
+  var cs = [CONFIG.accentColor1, CONFIG.accentColor2, '#fff', '#ff88cc', '#88ffcc'];
+  for (var i = 0; i < total; i++) {
+    (function(ii) {
+      setTimeout(function() {
+        for (var k = 0; k < 2; k++) {
+          particles.push({
+            x: Math.random() * W, y: -8,
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: 1.5 + Math.random() * 2.5,
+            r:  3 + Math.random() * 4,
+            alpha: 1,
+            color: cs[Math.floor(Math.random() * cs.length)],
+            decay: 0.007 + Math.random() * 0.005,
+            star: false,
+          });
+        }
+      }, ii * 50);
+    })(i);
+  }
+}
+
+function updateParticles() {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.13;
+    p.alpha -= p.decay;
+    if (p.alpha <= 0) particles.splice(i, 1);
+  }
+  for (var j = floaters.length - 1; j >= 0; j--) {
+    var f = floaters[j];
+    f.y += f.vy; f.alpha -= 0.022;
+    if (f.alpha <= 0) floaters.splice(j, 1);
+  }
+}
+
+function drawParticles() {
+  particles.forEach(function(p) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    if (p.star) {
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.alpha * 6);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      for (var s = 0; s < 4; s++) {
+        var a1 = (s / 4) * Math.PI * 2, a2 = a1 + Math.PI / 4;
+        ctx.lineTo(Math.cos(a1) * p.r * 2.4, Math.sin(a1) * p.r * 2.4);
+        ctx.lineTo(Math.cos(a2) * p.r * 0.9, Math.sin(a2) * p.r * 0.9);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+  floaters.forEach(function(f) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, f.alpha);
+    ctx.font = 'bold 18px "Courier New",monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = CONFIG.accentColor2;
+    ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 10;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
+  });
+}
+
+/* =====================================================================
+   DRAW ITEMS
+   ===================================================================== */
+function drawItems() {
+  items.forEach(function(item) {
+    if (!item.alive) return;
+    ctx.save();
+    ctx.translate(item.x, item.y);
+    item.rot += item.rotSpd;
+    ctx.rotate(item.rot);
+
+    var img = ASSETS['item' + item.assetIdx];
+    if (img) {
+      ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 14;
+      ctx.drawImage(img, -item.w / 2, -item.h / 2, item.w, item.h);
+      ctx.shadowBlur = 0;
+    } else {
+      var s   = item.w / 2;
+      var col = CONFIG.itemColors[item.colorIdx % CONFIG.itemColors.length];
+      var ico = CONFIG.itemIcons [item.colorIdx % CONFIG.itemIcons.length];
+
+      ctx.shadowColor = col; ctx.shadowBlur = 18;
+      ctx.beginPath();
+      var r = s * 0.35;
+      ctx.moveTo(-s + r, -s);
+      ctx.arcTo(s, -s, s, s, r);
+      ctx.arcTo(s, s, -s, s, r);
+      ctx.arcTo(-s, s, -s, -s, r);
+      ctx.arcTo(-s, -s, s, -s, r);
+      ctx.closePath();
+      var bg = ctx.createLinearGradient(-s, -s, s, s);
+      bg.addColorStop(0, col); bg.addColorStop(1, 'rgba(255,255,255,0.1)');
+      ctx.fillStyle = bg; ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Shine
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(0, -s * 0.38, s * 0.52, s * 0.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Icon
+      ctx.font = Math.round(s * 1.1) + 'px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ico, 0, 1);
+    }
+    ctx.restore();
+  });
+}
+
+/* =====================================================================
+   DRAW BAG
+   ===================================================================== */
+function drawBag() {
+  var bw = CONFIG.bagWidth, bh = CONFIG.bagHeight;
+  var bx = bagX, by = BAG_FLOOR - bh / 2;
+  ctx.save();
+
+  // Glow trail under bag
+  var tg = ctx.createLinearGradient(bx - bw * 0.6, 0, bx + bw * 0.6, 0);
+  tg.addColorStop(0, 'transparent');
+  tg.addColorStop(0.5, CONFIG.accentColor1 + '44');
+  tg.addColorStop(1, 'transparent');
+  ctx.fillStyle = tg;
+  ctx.fillRect(bx - bw * 0.6, BAG_FLOOR + bh * 0.38, bw * 1.2, 5);
+
+  var img = ASSETS.bag;
+  if (img) {
+    ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 18;
+    ctx.drawImage(img, bx - bw / 2, by - bh / 2, bw, bh);
+    ctx.shadowBlur = 0;
+  } else {
+    // Procedural bag
+    var bodyTop = by - bh * 0.1;
+    var bodyH   = bh * 0.72;
+    var bodyW   = bw * 0.88;
+
+    ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.moveTo(bx - bodyW * 0.42, bodyTop);
+    ctx.lineTo(bx + bodyW * 0.42, bodyTop);
+    ctx.lineTo(bx + bodyW * 0.5,  bodyTop + bodyH * 0.95);
+    ctx.quadraticCurveTo(bx + bodyW * 0.5, bodyTop + bodyH, bx + bodyW * 0.35, bodyTop + bodyH);
+    ctx.lineTo(bx - bodyW * 0.35, bodyTop + bodyH);
+    ctx.quadraticCurveTo(bx - bodyW * 0.5, bodyTop + bodyH, bx - bodyW * 0.5, bodyTop + bodyH * 0.95);
+    ctx.closePath();
+
+    var bg = ctx.createLinearGradient(bx - bodyW / 2, bodyTop, bx + bodyW / 2, bodyTop + bodyH);
+    bg.addColorStop(0, '#2a1a3e'); bg.addColorStop(0.5, '#1a0e2e'); bg.addColorStop(1, '#110820');
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Rim
+    ctx.strokeStyle = CONFIG.accentColor1; ctx.lineWidth = 1.8;
+    ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(bx - bodyW * 0.42, bodyTop);
+    ctx.lineTo(bx + bodyW * 0.42, bodyTop);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Handles
+    ctx.strokeStyle = CONFIG.accentColor2; ctx.lineWidth = 2.5;
+    ctx.shadowColor = CONFIG.accentColor2; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(bx - bodyW * 0.16, bodyTop - 0.5, bodyW * 0.13, Math.PI, 0, false); ctx.stroke();
+    ctx.beginPath(); ctx.arc(bx + bodyW * 0.16, bodyTop - 0.5, bodyW * 0.13, Math.PI, 0, false); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Inner rim glow
+    var rg = ctx.createLinearGradient(bx - bodyW / 2, 0, bx + bodyW / 2, 0);
+    rg.addColorStop(0, 'transparent');
+    rg.addColorStop(0.25, CONFIG.accentColor1 + 'bb');
+    rg.addColorStop(0.75, CONFIG.accentColor2 + 'bb');
+    rg.addColorStop(1, 'transparent');
+    ctx.strokeStyle = rg; ctx.lineWidth = 1;
+    ctx.shadowColor = CONFIG.accentColor1; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.moveTo(bx - bodyW * 0.42, bodyTop + 1); ctx.lineTo(bx + bodyW * 0.42, bodyTop + 1); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  ctx.restore();
+}
+
+/* =====================================================================
+   HUD
+   ===================================================================== */
+function updateHUD(popScore) {
+  document.getElementById('timerDisplay').textContent = timeLeft;
+  var sd = document.getElementById('scoreDisplay');
+  sd.textContent = score;
+  document.getElementById('timerDisplay').className = 'hud-value' + (timeLeft <= 5 ? ' warn' : '');
+  if (popScore) { sd.classList.remove('pop'); void sd.offsetWidth; sd.classList.add('pop'); }
+  var pct = Math.min(score / CONFIG.targetScore * 100, 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+/* =====================================================================
+   MAIN LOOP
+   ===================================================================== */
+function loop() {
+  animId = requestAnimationFrame(loop);
+  drawBackground();
+  ctx.clearRect(0, 0, W, H);
+
+  if (flashAlpha > 0) {
+    ctx.globalAlpha = flashAlpha;
+    ctx.fillStyle   = flashColor;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    flashAlpha = Math.max(0, flashAlpha - 0.045);
+  }
+
+  var doShake = shakeMag > 0.2;
+  if (doShake) {
+    shakeDir *= -1;
+    ctx.save();
+    ctx.translate(shakeDir * shakeMag, 0);
+    shakeMag *= 0.7;
+  }
+
+  if (state === 'playing') {
+    bagX += (bagTargetX - bagX) * 0.18;
+    items.forEach(function(item) {
+      if (!item.alive) return;
+      item.y += item.velY;
+      item.swayPhase += 0.04;
+      item.x += Math.sin(item.swayPhase) * 0.35;
+      item.x = Math.max(item.w / 2, Math.min(W - item.w / 2, item.x));
+    });
+    checkCatches();
+    updateParticles();
+    drawItems();
+    drawBag();
+    drawParticles();
+  } else {
+    drawBag();
+    updateParticles();
+    drawParticles();
+  }
+
+  if (doShake) ctx.restore();
+}
+
+/* =====================================================================
+   BOOTSTRAP
+   ===================================================================== */
+(async function() {
+  await loadAllAssets();
+  init();
+})();
+</script>
+</body>
+</html>
