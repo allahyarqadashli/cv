@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Claw Machine Game</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Boogaloo&family=Nunito:wght@700;800;900&display=swap');
+
+:root {
+  --red: #e8151b;
+  --red-dark: #b50f14;
+  --red-deep: #8a0a0e;
+  --yellow: #ffd700;
+  --yellow-light: #ffe566;
+  --yellow-dark: #c8a000;
+  --metal: #c8c8c8;
+  --metal-dark: #888;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: radial-gradient(ellipse at center, #2a2a3e 0%, #0e0e1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
+}
+
+/* ── AD WRAPPER ── */
+.ad-wrap {
+  width: 340px;
+  background: #fff;
+  border-radius: 28px;
+  padding: 8px;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.15), 0 30px 80px rgba(0,0,0,0.7);
+  position: relative;
+  user-select: none;
+}
+
+/* ── MACHINE BODY ── */
+.machine {
+  width: 100%;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(255,80,80,0.4) 0%, transparent 50%),
+    linear-gradient(175deg, #f52020 0%, var(--red) 25%, var(--red-dark) 60%, var(--red-deep) 100%);
+  padding: 0 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 6px 20px rgba(255,120,120,0.25), inset 0 -8px 24px rgba(0,0,0,0.35);
+}
+
+/* gloss sheen */
+.machine::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;height:42%;
+  background: linear-gradient(180deg,rgba(255,255,255,0.14) 0%,rgba(255,255,255,0.02) 100%);
+  border-radius:22px 22px 60% 60%;
+  pointer-events:none;
+}
+
+/* ── SCREWS ── */
+.screws-l, .screws-r {
+  position:absolute;
+  display:flex;
+  flex-direction:column;
+  gap:54px;
+  top:0;
+  padding-top:60px;
+}
+.screws-l { left:5px; }
+.screws-r { right:5px; }
+.screw {
+  width:12px; height:12px; border-radius:50%;
+  background: radial-gradient(circle at 38% 35%, #e0d8c0, #a09060 50%, #6a5030);
+  box-shadow: 0 2px 3px rgba(0,0,0,0.55), inset 0 1px 2px rgba(255,255,255,0.35);
+  position:relative;
+}
+.screw::before,.screw::after {
+  content:'';position:absolute;
+  top:50%;left:18%;width:64%;height:1.8px;
+  background:rgba(0,0,0,0.3);border-radius:2px;
+  transform-origin:center;
+}
+.screw::before { transform:translateY(-50%) rotate(45deg); }
+.screw::after  { transform:translateY(-50%) rotate(-45deg); }
+
+/* ── TIMER ── */
+.timer-wrap {
+  margin-top:10px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  background:linear-gradient(180deg,#1c1c1c,#2e2e2e);
+  border:2px solid #444;
+  border-radius:10px;
+  padding:4px 16px 4px 12px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.5),inset 0 1px 2px rgba(255,255,255,0.06);
+  z-index:2;
+}
+.timer-icon { font-size:16px; }
+.timer-digits {
+  font-family:'Courier New',monospace;
+  font-size:26px;
+  font-weight:bold;
+  color:#ff3333;
+  letter-spacing:3px;
+  text-shadow:0 0 10px rgba(255,40,40,0.8),0 0 22px rgba(255,40,40,0.4);
+  line-height:1;
+}
+.timer-digits.urgent { animation:timerPulse 0.5s ease-in-out infinite; }
+@keyframes timerPulse { 0%,100%{color:#ff3333;} 50%{color:#ff9999;} }
+
+/* ── LOGO ── */
+.logo-area {
+  margin-top:7px;
+  width:160px; height:34px;
+  border:2px dashed rgba(255,220,100,0.55);
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,220,100,0.75);
+  font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;
+  z-index:2;
+}
+
+/* ── GAME WINDOW FRAME ── */
+.win-frame {
+  margin-top:8px;
+  width:100%;
+  background:linear-gradient(180deg,#999 0%,#555 100%);
+  border-radius:16px;
+  padding:4px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.55),inset 0 2px 3px rgba(255,255,255,0.28);
+  z-index:2;
+  position:relative;
+}
+
+/* ── GAME CANVAS AREA ── */
+.game-window {
+  width:100%;
+  height:290px;
+  border-radius:12px;
+  background:linear-gradient(155deg,#ffe85a 0%,#ffd700 35%,#ffbb00 70%,#e8960a 100%);
+  position:relative;
+  overflow:hidden;
+}
+/* glass glare */
+.game-window::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:40%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.32) 0%,rgba(255,255,255,0.04) 100%);
+  border-radius:12px 12px 60% 60%;
+  pointer-events:none;z-index:20;
+}
+/* subtle light rays */
+.game-window::after {
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(125deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 2px,transparent 2px,transparent 30px);
+  pointer-events:none;z-index:1;
+}
+
+/* window corner screws */
+.ws { position:absolute;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 38% 35%,#ddd,#888 60%,#555);
+  box-shadow:0 1px 3px rgba(0,0,0,0.5);z-index:25; }
+.ws.tl{top:5px;left:5px} .ws.tr{top:5px;right:5px}
+.ws.bl{bottom:5px;left:5px} .ws.br{bottom:5px;right:5px}
+
+/* ── CLAW TRACK (top rail) ── */
+.claw-track {
+  position:absolute;
+  top:0;left:0;right:0;
+  height:10px;
+  background:linear-gradient(180deg,#bbb 0%,#888 100%);
+  z-index:15;
+  box-shadow:0 3px 6px rgba(0,0,0,0.3);
+}
+.claw-track::after {
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:3px;
+  background:rgba(0,0,0,0.2);
+}
+
+/* ── CLAW ASSEMBLY ── */
+.claw-asm {
+  position:absolute;
+  top:0;
+  /* left set by JS */
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  z-index:14;
+  transform:translateX(-50%);
+  transition:left 0.35s cubic-bezier(0.25,0.46,0.45,0.94);
+}
+.claw-trolley {
+  width:22px;height:10px;
+  background:linear-gradient(180deg,#ddd,#aaa);
+  border-radius:3px;
+  box-shadow:0 2px 4px rgba(0,0,0,0.3),inset 0 1px 2px rgba(255,255,255,0.4);
+}
+.claw-wire {
+  width:3px;
+  background:linear-gradient(90deg,#aaa,#ddd,#aaa);
+  border-radius:2px;
+  height:50px; /* animated by JS */
+  transition:height 0.35s ease;
+}
+.claw-body {
+  width:36px;height:18px;
+  background:linear-gradient(180deg,#d8d8d8 0%,#b0b0b0 50%,#909090 100%);
+  border-radius:6px 6px 2px 2px;
+  box-shadow:0 3px 7px rgba(0,0,0,0.35),inset 0 2px 4px rgba(255,255,255,0.4);
+  position:relative;
+}
+.claw-body::after {
+  content:'';position:absolute;top:3px;left:50%;transform:translateX(-50%);
+  width:16px;height:7px;
+  background:linear-gradient(180deg,#eee,#ccc);
+  border-radius:4px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.25);
+}
+.claw-fingers {
+  display:flex;
+  margin-top:-1px;
+  gap:2px;
+}
+.finger {
+  width:5px;
+  background:linear-gradient(90deg,#aaa,#ddd,#aaa);
+  border-radius:0 0 3px 3px;
+  box-shadow:1px 2px 3px rgba(0,0,0,0.25);
+  transition:height 0.2s ease, transform 0.2s ease;
+}
+/* resting: fingers slightly spread */
+.finger:nth-child(1){height:22px;transform:rotate(-28deg);transform-origin:top center;}
+.finger:nth-child(2){height:26px;transform:rotate(-9deg);transform-origin:top center;}
+.finger:nth-child(3){height:26px;transform:rotate(9deg);transform-origin:top center;}
+.finger:nth-child(4){height:22px;transform:rotate(28deg);transform-origin:top center;}
+
+/* grabbing state */
+.claw-asm.grabbing .finger:nth-child(1){transform:rotate(-12deg);}
+.claw-asm.grabbing .finger:nth-child(2){transform:rotate(-4deg);}
+.claw-asm.grabbing .finger:nth-child(3){transform:rotate(4deg);}
+.claw-asm.grabbing .finger:nth-child(4){transform:rotate(12deg);}
+
+/* ── INSTRUCTION TEXT ── */
+.inst-text {
+  position:absolute;
+  top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;
+  z-index:10;
+  pointer-events:none;
+  width:80%;
+}
+.inst-text p {
+  font-weight:900;
+  font-size:13px;
+  color:#1a1a1a;
+  line-height:1.45;
+  text-shadow:0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ── CIRCLES (prizes) ── */
+.circles-row {
+  position:absolute;
+  bottom:10px;
+  left:0;right:0;
+  display:flex;
+  justify-content:space-evenly;
+  align-items:flex-end;
+  z-index:12;
+  padding:0 6px;
+}
+.prize-circle {
+  width:58px;height:58px;
+  border-radius:50%;
+  background:radial-gradient(circle at 38% 30%, rgba(255,255,255,0.85) 0%, rgba(255,240,180,0.6) 40%, rgba(255,220,100,0.4) 100%);
+  border:3px solid rgba(255,255,255,0.75);
+  box-shadow:0 4px 14px rgba(0,0,0,0.2),inset 0 4px 8px rgba(255,255,255,0.5);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+  overflow:hidden;
+  transition:transform 0.2s,opacity 0.4s;
+  font-size:10px;
+  font-weight:800;
+  color:rgba(80,50,0,0.7);
+  flex-shrink:0;
+}
+.prize-circle::before {
+  content:'';position:absolute;
+  top:4px;left:8px;right:8px;height:35%;
+  background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.05));
+  border-radius:50%;pointer-events:none;
+}
+.prize-circle img {
+  width:80%;height:80%;object-fit:contain;
+  position:relative;z-index:2;
+}
+.prize-circle .img-ph {
+  font-size:8px;font-weight:800;color:rgba(80,50,0,0.6);
+  text-align:center;line-height:1.3;
+}
+.prize-circle.captured {
+  opacity:0.3;
+  transform:scale(0.85);
+  filter:grayscale(1);
+}
+/* bounce idle */
+@keyframes circleBounce {
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-4px);}
+}
+.prize-circle:not(.captured) { animation:circleBounce 2.5s ease-in-out infinite; }
+.prize-circle:nth-child(2):not(.captured){animation-delay:.3s;}
+.prize-circle:nth-child(3):not(.captured){animation-delay:.6s;}
+.prize-circle:nth-child(4):not(.captured){animation-delay:.9s;}
+
+/* dragged circle rides the claw */
+.prize-circle.riding {
+  position:absolute;
+  transition:none;
+  animation:none;
+  z-index:16;
+  border-color:rgba(100,255,180,0.9);
+  box-shadow:0 0 14px rgba(50,220,130,0.6);
+}
+
+/* ── CONTROL PANEL ── */
+.ctrl-panel {
+  margin-top:8px;
+  width:100%;
+  background:linear-gradient(180deg,#d01515 0%,#960f0f 100%);
+  border-radius:14px;
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  box-shadow:inset 0 3px 6px rgba(255,100,100,0.2),inset 0 -4px 8px rgba(0,0,0,0.3),0 4px 10px rgba(0,0,0,0.3);
+  z-index:2;
+  position:relative;
+}
+
+/* direction buttons */
+.dir-btns {
+  display:flex;
+  gap:6px;
+  flex-shrink:0;
+}
+.dir-btn {
+  width:36px;height:36px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#ffe866,#ffd700 55%,#c8a000);
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 8px rgba(0,0,0,0.4),0 0 0 3px rgba(255,200,0,0.25),inset 0 2px 3px rgba(255,255,255,0.45);
+  font-size:16px;font-weight:900;color:#7a5000;
+  transition:transform .1s,box-shadow .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.dir-btn:active,.dir-btn.pressed {
+  transform:scale(0.9);
+  box-shadow:0 1px 4px rgba(0,0,0,0.4),inset 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* indicator dots */
+.dots {
+  display:flex;gap:8px;align-items:center;flex:1;justify-content:center;
+}
+.dot {
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid rgba(255,255,255,0.3);
+  background:rgba(0,0,0,0.35);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,0.4);
+  transition:all .3s ease;
+}
+.dot.lit {
+  background:radial-gradient(circle at 40% 35%,#ffe866,#ffd700);
+  border-color:rgba(255,220,0,0.8);
+  box-shadow:0 0 8px rgba(255,220,0,0.7),inset 0 1px 2px rgba(255,255,255,0.4);
+}
+
+/* press button */
+.press-btn {
+  width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#ffe866,#ffd700 55%,#c8a000);
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4),0 0 0 4px rgba(255,200,0,0.3),inset 0 2px 4px rgba(255,255,255,0.5);
+  transition:transform .1s,box-shadow .1s;
+  animation:pressPulse 2s ease-in-out infinite;
+  flex-shrink:0;
+  position:relative;
+  overflow:visible;
+}
+.press-btn:active,.press-btn.pressed {
+  transform:scale(0.9) translateY(2px);
+  box-shadow:0 1px 5px rgba(0,0,0,0.4),inset 0 2px 6px rgba(0,0,0,0.2);
+  animation:none;
+}
+@keyframes pressPulse {
+  0%,100%{box-shadow:0 4px 12px rgba(0,0,0,0.4),0 0 0 4px rgba(255,200,0,0.3),inset 0 2px 4px rgba(255,255,255,0.5);}
+  50%{box-shadow:0 4px 16px rgba(255,200,0,0.5),0 0 0 10px rgba(255,200,0,0.15),inset 0 2px 4px rgba(255,255,255,0.5);}
+}
+
+/* hand cursor on press button */
+.hand-svg {
+  position:absolute;
+  bottom:-8px;right:-10px;
+  pointer-events:none;
+  z-index:5;
+  animation:handBounce 1.5s ease-in-out infinite;
+}
+@keyframes handBounce {
+  0%,100%{transform:translateY(0);} 50%{transform:translateY(-4px);}
+}
+
+/* ── STATUS TEXT ── */
+.status-bar {
+  margin-top:7px;
+  text-align:center;
+  z-index:2;
+}
+.status-txt {
+  font-family:'Boogaloo',cursive;
+  font-size:13px;
+  color:rgba(255,220,100,0.95);
+  letter-spacing:1px;
+  text-shadow:0 1px 4px rgba(0,0,0,0.4);
+}
+.coin-slot {
+  width:46px;height:5px;
+  background:linear-gradient(180deg,#111,#333);
+  border-radius:3px;
+  margin:5px auto 0;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,0.6);
+}
+
+/* ── END CARD OVERLAY ── */
+.end-card {
+  position:absolute;
+  inset:0;
+  border-radius:22px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;
+  padding:24px;
+  z-index:100;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.5s ease;
+}
+.end-card.show { opacity:1; pointer-events:all; }
+
+/* win end card */
+.end-card.win {
+  background:radial-gradient(ellipse at center,rgba(255,220,0,0.97) 0%,rgba(230,150,0,0.98) 100%);
+}
+/* timeout end card */
+.end-card.timeout {
+  background:radial-gradient(ellipse at center,rgba(220,30,30,0.97) 0%,rgba(140,10,10,0.98) 100%);
+}
+
+.end-icon { font-size:52px; animation:endIconPop 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
+@keyframes endIconPop {
+  from{transform:scale(0) rotate(-20deg);opacity:0;}
+  to{transform:scale(1) rotate(0deg);opacity:1;}
+}
+.end-title {
+  font-family:'Boogaloo',cursive;
+  font-size:30px;
+  color:#fff;
+  text-shadow:0 3px 10px rgba(0,0,0,0.35);
+  text-align:center;
+  line-height:1.1;
+  animation:endTxtIn .5s .15s ease both;
+}
+.end-sub {
+  font-size:14px;
+  font-weight:800;
+  color:rgba(255,255,255,0.88);
+  text-align:center;
+  line-height:1.4;
+  animation:endTxtIn .5s .25s ease both;
+}
+@keyframes endTxtIn {
+  from{transform:translateY(16px);opacity:0;}
+  to{transform:translateY(0);opacity:1;}
+}
+.cta-btn {
+  background:linear-gradient(180deg,#fff 0%,#f0f0f0 100%);
+  color:#cc0000;
+  border:none;cursor:pointer;
+  font-family:'Boogaloo',cursive;
+  font-size:20px;
+  font-weight:900;
+  letter-spacing:1px;
+  padding:14px 36px;
+  border-radius:50px;
+  box-shadow:0 6px 20px rgba(0,0,0,0.35),0 0 0 4px rgba(255,255,255,0.3);
+  transition:transform .12s,box-shadow .12s;
+  animation:endTxtIn .5s .35s ease both, ctaPulse 2s .9s ease-in-out infinite;
+}
+.cta-btn:active { transform:scale(0.94); }
+@keyframes ctaPulse {
+  0%,100%{box-shadow:0 6px 20px rgba(0,0,0,0.35),0 0 0 4px rgba(255,255,255,0.3);}
+  50%{box-shadow:0 6px 28px rgba(0,0,0,0.4),0 0 0 10px rgba(255,255,255,0.15);}
+}
+
+.score-chips {
+  display:flex;gap:8px;
+  animation:endTxtIn .5s .3s ease both;
+}
+.score-chip {
+  width:40px;height:40px;border-radius:50%;
+  background:rgba(255,255,255,0.3);
+  border:2px solid rgba(255,255,255,0.6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+}
+
+/* confetti particles */
+.confetti { position:absolute;pointer-events:none;z-index:101; }
+.cp {
+  position:absolute;
+  width:8px;height:8px;
+  border-radius:2px;
+  animation:confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%{opacity:1;transform:translate(0,0) rotate(0deg);}
+  100%{opacity:0;transform:translate(var(--cx),var(--cy)) rotate(var(--cr));}
+}
+
+/* ── GRAB FEEDBACK TEXT ── */
+.grab-msg {
+  position:absolute;
+  top:38%;left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Boogaloo',cursive;
+  font-size:22px;
+  font-weight:900;
+  z-index:18;
+  pointer-events:none;
+  opacity:0;
+  text-shadow:0 2px 8px rgba(0,0,0,0.3);
+  transition:none;
+}
+.grab-msg.show-msg {
+  animation:msgPop .9s ease forwards;
+}
+@keyframes msgPop {
+  0%{opacity:0;transform:translate(-50%,-60%) scale(0.6);}
+  20%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}
+  70%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-40%) scale(0.9);}
+}
+
+/* disabled state */
+.dir-btn:disabled,.press-btn:disabled {
+  opacity:0.45;cursor:not-allowed;animation:none;
+}
+</style>
+</head>
+<body>
+
+<div class="ad-wrap">
+  <div class="machine" id="machine">
+
+    <!-- screws -->
+    <div class="screws-l"><div class="screw"></div><div class="screw"></div><div class="screw"></div><div class="screw"></div></div>
+    <div class="screws-r"><div class="screw"></div><div class="screw"></div><div class="screw"></div><div class="screw"></div></div>
+
+    <!-- timer -->
+    <div class="timer-wrap">
+      <span class="timer-icon">⏱</span>
+      <span class="timer-digits" id="timerEl">00:30</span>
+    </div>
+
+    <!-- logo -->
+    <div class="logo-area">YOUR LOGO HERE</div>
+
+    <!-- game window -->
+    <div class="win-frame">
+      <div class="game-window" id="gameWindow">
+        <div class="ws tl"></div><div class="ws tr"></div>
+        <div class="ws bl"></div><div class="ws br"></div>
+
+        <!-- claw track -->
+        <div class="claw-track"></div>
+
+        <!-- claw assembly -->
+        <div class="claw-asm" id="clawAsm" style="left:50%;">
+          <div class="claw-trolley"></div>
+          <div class="claw-wire" id="clawWire"></div>
+          <div class="claw-body"></div>
+          <div class="claw-fingers">
+            <div class="finger"></div>
+            <div class="finger"></div>
+            <div class="finger"></div>
+            <div class="finger"></div>
+          </div>
+        </div>
+
+        <!-- instruction -->
+        <div class="inst-text" id="instText">
+          <p>⬅ Move the claw, then<br>press <strong>GRAB</strong> to capture! ➡</p>
+        </div>
+
+        <!-- grab message feedback -->
+        <div class="grab-msg" id="grabMsg"></div>
+
+        <!-- prizes -->
+        <div class="circles-row" id="circlesRow">
+          <div class="prize-circle" id="prize0" data-idx="0">
+            <span class="img-ph">IMG<br>1</span>
+          </div>
+          <div class="prize-circle" id="prize1" data-idx="1">
+            <span class="img-ph">IMG<br>2</span>
+          </div>
+          <div class="prize-circle" id="prize2" data-idx="2">
+            <span class="img-ph">IMG<br>3</span>
+          </div>
+          <div class="prize-circle" id="prize3" data-idx="3">
+            <span class="img-ph">IMG<br>4</span>
+          </div>
+        </div>
+
+        <!-- END CARD (lives inside game window) -->
+        <div class="end-card" id="endCard">
+          <div class="confetti" id="confettiContainer"></div>
+          <div class="end-icon" id="endIcon">🎉</div>
+          <div class="end-title" id="endTitle">Deal Unlocked!</div>
+          <div class="score-chips" id="scoreChips"></div>
+          <div class="end-sub" id="endSub">You captured all 4 deals!<br>Claim your reward now.</div>
+          <button class="cta-btn" id="ctaBtn" onclick="handleCTA()">🎁 CLAIM YOUR DEAL</button>
+        </div>
+
+      </div><!-- /game-window -->
+    </div><!-- /win-frame -->
+
+    <!-- control panel -->
+    <div class="ctrl-panel">
+      <!-- direction buttons -->
+      <div class="dir-btns">
+        <button class="dir-btn" id="btnLeft"  onclick="moveClaw(-1)">◀</button>
+        <button class="dir-btn" id="btnRight" onclick="moveClaw(1)">▶</button>
+      </div>
+
+      <!-- dots -->
+      <div class="dots">
+        <div class="dot" id="d0"></div>
+        <div class="dot" id="d1"></div>
+        <div class="dot" id="d2"></div>
+        <div class="dot" id="d3"></div>
+      </div>
+
+      <!-- press/grab button -->
+      <button class="press-btn" id="pressBtn" onclick="triggerGrab()">
+        <!-- claw icon -->
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <rect x="11" y="1" width="6" height="9" rx="3" fill="#6a4000"/>
+          <rect x="13" y="8" width="2.5" height="7" fill="#7a5000"/>
+          <path d="M14 15 L6 25" stroke="#5a3500" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M14 15 L11 25" stroke="#5a3500" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M14 15 L17 25" stroke="#5a3500" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M14 15 L22 25" stroke="#5a3500" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="14" cy="13" r="4" fill="#7a5000"/>
+          <circle cx="14" cy="13" r="2" fill="#9a6500"/>
+        </svg>
+        <!-- hand cursor -->
+        <svg class="hand-svg" width="36" height="40" viewBox="0 0 36 40">
+          <g transform="translate(2,0)">
+            <rect x="4" y="12" width="13" height="11" rx="4" fill="white" stroke="#ccc" stroke-width="1"/>
+            <rect x="6" y="5" width="4" height="11" rx="2" fill="white" stroke="#ccc" stroke-width="1"/>
+            <rect x="11" y="3" width="4" height="13" rx="2" fill="white" stroke="#ccc" stroke-width="1"/>
+            <rect x="2" y="10" width="4" height="10" rx="2" fill="white" stroke="#ccc" stroke-width="1"/>
+            <rect x="16" y="10" width="4" height="9" rx="2" fill="white" stroke="#ccc" stroke-width="1"/>
+            <rect x="8" y="2" width="6" height="15" rx="3" fill="white" stroke="#bbb" stroke-width="1.5"/>
+            <rect x="9.5" y="3" width="3" height="4" rx="1.5" fill="#f0c0c0"/>
+          </g>
+        </svg>
+      </button>
+    </div>
+
+    <!-- bottom bar -->
+    <div class="status-bar">
+      <div class="status-txt" id="statusTxt">🕹️ USE ARROWS TO AIM · GRAB TO CATCH</div>
+      <div class="coin-slot"></div>
+    </div>
+
+  </div><!-- /machine -->
+</div><!-- /ad-wrap -->
+
+<script>
+// ── GAME STATE ──
+const TOTAL = 4;
+const TIMER_START = 30;
+const STEP_PCT = 16; // % per arrow tap
+const WIN_X_RANGE = 12; // ± px tolerance for a grab
+
+let clawPct = 50;       // 0–100 % of window width
+let captured = 0;
+let timerSec = TIMER_START;
+let timerInterval = null;
+let busy = false;       // during animation
+let gameActive = true;
+
+// Prize X positions as % of window width (centres of circles)
+const prizeXs = [14, 36, 62, 84];  // approx centres
+const prizeCapt = [false,false,false,false];
+
+// DOM refs
+const clawAsm   = document.getElementById('clawAsm');
+const clawWire  = document.getElementById('clawWire');
+const timerEl   = document.getElementById('timerEl');
+const pressBtn  = document.getElementById('pressBtn');
+const btnLeft   = document.getElementById('btnLeft');
+const btnRight  = document.getElementById('btnRight');
+const instText  = document.getElementById('instText');
+const grabMsg   = document.getElementById('grabMsg');
+const endCard   = document.getElementById('endCard');
+const statusTxt = document.getElementById('statusTxt');
+const gameWin   = document.getElementById('gameWindow');
+
+function getWindowWidth() { return gameWin.offsetWidth; }
+
+function setClaw(pct) {
+  clawPct = Math.max(7, Math.min(93, pct));
+  clawAsm.style.left = clawPct + '%';
+}
+
+// ── MOVE CLAW ──
+function moveClaw(dir) {
+  if (!gameActive || busy) return;
+  startTimer();
+  setClaw(clawPct + dir * STEP_PCT);
+  // brief press effect
+  const btn = dir < 0 ? btnLeft : btnRight;
+  btn.classList.add('pressed');
+  setTimeout(() => btn.classList.remove('pressed'), 120);
+  updateInstText();
+}
+
+// ── GRAB ──
+function triggerGrab() {
+  if (!gameActive || busy) return;
+  startTimer();
+  busy = true;
+  setControlsEnabled(false);
+
+  // find closest uncaptured prize
+  let closest = -1, minDist = 999;
+  for (let i = 0; i < TOTAL; i++) {
+    if (prizeCapt[i]) continue;
+    const dist = Math.abs(prizeXs[i] - clawPct);
+    if (dist < minDist) { minDist = dist; closest = i; }
+  }
+
+  const hit = closest >= 0 && minDist <= WIN_X_RANGE;
+
+  pressBtn.classList.add('pressed');
+  setTimeout(() => pressBtn.classList.remove('pressed'), 150);
+
+  // animate: descend
+  clawAsm.classList.add('grabbing');
+  clawWire.style.height = '110px';
+  clawWire.style.transition = 'height 0.45s ease-in';
+
+  setTimeout(() => {
+    if (hit) {
+      // capture it
+      capturePrize(closest);
+    } else {
+      showGrabMsg('MISS!', '#ff4444');
+    }
+
+    // ascend
+    setTimeout(() => {
+      clawWire.style.transition = 'height 0.45s ease-out';
+      clawWire.style.height = '50px';
+      clawAsm.classList.remove('grabbing');
+
+      setTimeout(() => {
+        busy = false;
+        setControlsEnabled(true);
+        updateInstText();
+      }, 480);
+    }, hit ? 500 : 250);
+
+  }, 480);
+}
+
+function capturePrize(idx) {
+  prizeCapt[idx] = true;
+  captured++;
+
+  const prizeEl = document.getElementById('prize' + idx);
+
+  // brief grab flash
+  showGrabMsg('GOT IT! 🎯', '#22dd88');
+
+  // mark dot
+  document.getElementById('d' + (captured - 1)).classList.add('lit');
+
+  // animate circle up with claw then fade
+  prizeEl.classList.add('riding');
+  const ww = getWindowWidth();
+  const clawPx = clawPct / 100 * ww;
+  const prizeCirclePx = prizeXs[idx] / 100 * ww;
+  prizeEl.style.left = (prizeCirclePx - 29) + 'px';
+  prizeEl.style.bottom = '10px';
+
+  // move to claw horizontally
+  setTimeout(() => {
+    prizeEl.style.transition = 'left 0.3s ease, bottom 0.45s ease, opacity 0.3s ease 0.5s';
+    prizeEl.style.left = (clawPx - 29) + 'px';
+    prizeEl.style.bottom = '200px';
+    setTimeout(() => {
+      prizeEl.style.opacity = '0';
+      setTimeout(() => {
+        prizeEl.classList.remove('riding');
+        prizeEl.classList.add('captured');
+        prizeEl.style = '';
+      }, 350);
+    }, 300);
+  }, 50);
+
+  statusTxt.textContent = `🎯 ${captured}/4 CAPTURED! KEEP GOING!`;
+
+  if (captured === TOTAL) {
+    setTimeout(() => triggerEndCard(true), 900);
+  }
+}
+
+function showGrabMsg(txt, color) {
+  grabMsg.textContent = txt;
+  grabMsg.style.color = color;
+  grabMsg.classList.remove('show-msg');
+  void grabMsg.offsetWidth;
+  grabMsg.classList.add('show-msg');
+}
+
+// ── TIMER ──
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    timerSec--;
+    const m = String(Math.floor(timerSec / 60)).padStart(2,'0');
+    const s = String(timerSec % 60).padStart(2,'0');
+    timerEl.textContent = `${m}:${s}`;
+    if (timerSec <= 10) timerEl.classList.add('urgent');
+    if (timerSec <= 0) {
+      clearInterval(timerInterval);
+      timerEl.textContent = '00:00';
+      triggerEndCard(false);
+    }
+  }, 1000);
+}
+
+// ── CONTROLS ──
+function setControlsEnabled(on) {
+  btnLeft.disabled  = !on;
+  btnRight.disabled = !on;
+  pressBtn.disabled = !on;
+}
+
+function updateInstText() {
+  if (!gameActive) return;
+  const rem = TOTAL - captured;
+  instText.querySelector('p').innerHTML =
+    `${rem} capsule${rem!==1?'s':''} left! ⬅ Aim the claw ➡<br>then press <strong>GRAB!</strong>`;
+}
+
+// ── END CARD ──
+function triggerEndCard(win) {
+  gameActive = false;
+  busy = true;
+  clearInterval(timerInterval);
+  setControlsEnabled(false);
+
+  const card = endCard;
+  const icon = document.getElementById('endIcon');
+  const title = document.getElementById('endTitle');
+  const sub = document.getElementById('endSub');
+  const chips = document.getElementById('scoreChips');
+  const cta = document.getElementById('ctaBtn');
+
+  // populate score chips
+  chips.innerHTML = '';
+  for (let i = 0; i < TOTAL; i++) {
+    const c = document.createElement('div');
+    c.className = 'score-chip';
+    c.textContent = prizeCapt[i] ? '✅' : '❌';
+    chips.appendChild(c);
+  }
+
+  if (win) {
+    card.classList.add('win');
+    icon.textContent = '🏆';
+    title.textContent = 'DEAL UNLOCKED!';
+    sub.textContent = `You captured all ${TOTAL} capsules!\nClaim your reward now.`;
+    cta.textContent = '🎁 CLAIM YOUR DEAL';
+    spawnConfetti();
+  } else {
+    card.classList.add('timeout');
+    icon.textContent = captured > 0 ? '⏰' : '😅';
+    title.textContent = captured >= 2 ? 'SO CLOSE!' : 'TIME\'S UP!';
+    sub.textContent = `You captured ${captured}/${TOTAL} capsules.\nTry again for the full deal!`;
+    cta.textContent = '🔄 PLAY AGAIN';
+  }
+
+  setTimeout(() => card.classList.add('show'), 100);
+}
+
+function handleCTA() {
+  const isWin = endCard.classList.contains('win');
+  if (isWin) {
+    alert('Redirecting to your deal! 🎁');
+  } else {
+    // reset
+    resetGame();
+  }
+}
+
+function resetGame() {
+  endCard.classList.remove('show','win','timeout');
+  captured = 0;
+  timerSec = TIMER_START;
+  timerEl.textContent = '00:30';
+  timerEl.classList.remove('urgent');
+  clearInterval(timerInterval);
+  timerInterval = null;
+  busy = false;
+  gameActive = true;
+  setClaw(50);
+  clawWire.style.height = '50px';
+  clawAsm.classList.remove('grabbing');
+  for (let i = 0; i < TOTAL; i++) {
+    prizeCapt[i] = false;
+    const p = document.getElementById('prize' + i);
+    p.classList.remove('captured','riding');
+    p.style = '';
+    document.getElementById('d' + i).classList.remove('lit');
+  }
+  setControlsEnabled(true);
+  instText.querySelector('p').innerHTML = '⬅ Move the claw, then<br>press <strong>GRAB</strong> to capture! ➡';
+  statusTxt.textContent = '🕹️ USE ARROWS TO AIM · GRAB TO CATCH';
+  document.getElementById('confettiContainer').innerHTML = '';
+}
+
+// ── CONFETTI ──
+function spawnConfetti() {
+  const container = document.getElementById('confettiContainer');
+  const colors = ['#ffd700','#ff4444','#ff8800','#fff','#00dd88','#ff66cc','#44aaff'];
+  for (let i = 0; i < 45; i++) {
+    const p = document.createElement('div');
+    p.className = 'cp';
+    const size = 6 + Math.random() * 8;
+    const cx = (Math.random() - 0.5) * 280;
+    const cy = -(80 + Math.random() * 200);
+    const cr = (Math.random() - 0.5) * 720 + 'deg';
+    const dur = 0.9 + Math.random() * 0.8;
+    p.style.cssText = `
+      width:${size}px;height:${size}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      left:${30+Math.random()*40}%;
+      top:50%;
+      --cx:${cx}px;--cy:${cy}px;--cr:${cr};
+      animation-duration:${dur}s;
+      animation-delay:${Math.random()*0.4}s;
+      border-radius:${Math.random()>0.5?'50%':'2px'};
+    `;
+    container.appendChild(p);
+  }
+}
+
+// ── KEYBOARD SUPPORT ──
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')  moveClaw(-1);
+  if (e.key === 'ArrowRight') moveClaw(1);
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); triggerGrab(); }
+});
+
+// init
+setClaw(50);
+</script>
+</body>
+</html>
